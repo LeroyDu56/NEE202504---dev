@@ -10,7 +10,16 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       TZ: "Europe/Paris"
-    volumes:
-      - mysql-data:/var/lib/mysql
-volumes:
-  mysql-data:
+    networks: [nee-net]
+
+  adminer:
+    image: adminer:latest
+    container_name: nee-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+    networks: [nee-net]
+
+networks:
+  nee-net:
