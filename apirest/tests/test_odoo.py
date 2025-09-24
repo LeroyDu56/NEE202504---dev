@@ -46,7 +46,7 @@ def test_odoo_connection():
         # Test récupération des ordres de fabrication
         print("RECUPERATION DES ORDRES DE FABRICATION")
         start_time = time.time()
-        orders = odoo.get_manufacturing_orders()
+        orders = odoo.get_ofs()
         end_time = time.time()
 
         print(f"Temps de récupération: {end_time - start_time:.2f} secondes")

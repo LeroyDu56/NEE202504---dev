@@ -75,7 +75,7 @@ class Odoo:
             print(f"Erreur de connexion Odoo: {e}")
             return False
 
-    def get_manufacturing_orders(self) -> List[Dict]:
+    def get_ofs(self) -> List[Dict]:
         """
         Récupère tous les ordres de fabrication depuis Odoo
         
