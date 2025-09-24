@@ -1,7 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict
 from services.odoo_service import Odoo
+from services.opcua_service import OpcUaServer
+from api.schemas.of_schema import OFData
 import os
 from dotenv import load_dotenv
 import uvicorn
@@ -24,6 +26,11 @@ odoo = Odoo(
     username=os.getenv("ODOO_USER", "OperateurA@nee.com"),
     password=os.getenv("ODOO_PASSWORD", "ton_mot_de_passe"),
 )
+
+# Instance de la classe OpcUaServer
+opcua = OpcUaServer(endpoint_url="opc.tcp://localhost:53530/OPCUA/SimulationServer")
+
+
 
 # Endpoint pour récupérer les OFs
 @app.get("/api/erp/ofs", response_model=List[Dict], tags=["Ordre de Fabrication"])
@@ -50,6 +57,39 @@ async def get_ofs():
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur interne : {str(e)}")
+
+
+@app.post("/api/opcua/write-of")
+async def write_of_to_opcua(of_data: OFData):
+    try:
+        # Vérification de la variable booléenne avant d'écrire
+        aut_write_of = await opcua.read_node_value("ns=3;s:AutWriteOF")
+
+        if not isinstance(aut_write_of, bool):
+            raise HTTPException(status_code=500, detail="La variable de contrôle n'est pas booléenne")
+        if not aut_write_of:
+            raise HTTPException(status_code=403, detail="Écriture OPC UA interdite (AutWriteOF=False)")
+
+        # Écriture dans OPC UA
+        success = await opcua.write_multiple_values({
+            "ns=3;s=NumeroOF": of_data.OF,
+            "ns=3;s=Recette": of_data.Recette,
+            "ns=3;s=Quantite": of_data.Quantite
+        })
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Échec de l'écriture dans OPC UA")
+
+        # Lecture pour vérification
+        vals = await opcua.read_multiple_values([
+            "ns=3;s=NumeroOF",
+            "ns=3;s=Recette",
+            "ns=3;s=Quantite"
+        ])
+        return {"status": "success", "values": vals}
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erreur : {str(e)}")
 
 # Point d'entrée pour lancer l'API
 if __name__ == "__main__":
