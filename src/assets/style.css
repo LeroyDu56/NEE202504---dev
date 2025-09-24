@@ -1,79 +1,91 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
+/* Appliquer Poppins globalement */
 body {
-  margin: 0;
+  background: #f5f7fa;
+  color: #333;
+  line-height: 1.5;
+  font-family: "Poppins", "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+/* Barre de navigation responsive */
+.navbar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;  
   display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #2c3e50, #1a252f);
+  padding: 16px 6%;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1000;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Titre */
+.navbar h1 {
+  font-size: clamp(22px, 3.5vw, 36px); /* un peu plus grand */
+  font-weight: 700;
+  margin: 0;
+  color: #ffffff;
+  letter-spacing: 1.2px;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+/* Liens */
+.nav-links {
+  display: flex;
+  gap: clamp(18px, 3.5vw, 48px);
 }
 
-.card {
-  padding: 2em;
+.nav-links a {
+  position: relative;
+  color: #ecf0f1;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: clamp(18px, 2.2vw, 24px);
+  padding: 8px 0;
+  transition: color 0.3s ease;
+  font-family: "Poppins", sans-serif;
 }
 
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  width: 0%;
+  height: 3px;
+  bottom: -6px;
+  left: 0;
+  background-color: #42b983;
+  transition: width 0.3s ease;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+.nav-links a:hover {
+  color: #42b983;
+}
+
+.nav-links a:hover::after {
+  width: 100%;
+}
+
+/* Responsive mobile */
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px 20px;
   }
-  a:hover {
-    color: #747bff;
+
+  .nav-links {
+    flex-direction: column;
+    width: 100%;
+    gap: 14px;
+    margin-top: 14px;
   }
-  button {
-    background-color: #f9f9f9;
+
+  .nav-links a {
+    font-size: 20px;
+    width: 100%;
   }
 }
