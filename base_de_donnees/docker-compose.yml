@@ -2,24 +2,21 @@ services:
   mysql:
     build: .
     container_name: nee-mysql
-    ports:
-      - "3306:3306"
+    ports: ["3306:3306"]
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      TZ: "Europe/Paris"
     networks: [nee-net]
 
   adminer:
-    image: adminer:latest
+    image: adminer
     container_name: nee-adminer
-    ports:
-      - "8080:8080"
-    depends_on:
-      - mysql
+    ports: ["8080:8080"]
+    depends_on: [mysql]
     networks: [nee-net]
 
 networks:
   nee-net:
+
