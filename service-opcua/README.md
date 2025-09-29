@@ -1,5 +1,4 @@
 # NEE202504 - service-opcua
-# Service OPC UA - Ilot 3 / Service Recette
 
 Ce projet implémente un service **OPC UA** en Python avec la librairie `asyncua`.  
 Il permet de **surveiller les variables de production** (ilot 3) et de **piloter les validations côté service**.
@@ -14,12 +13,9 @@ Il permet de **surveiller les variables de production** (ilot 3) et de **piloter
   - `nEtat_OF`
   - `nId_of`
   - `sOF_RFID`
-- Actions côté **service** :
-  - Écriture sur `srv_bRecette_RFID`
-  - Écriture sur `srv_bOF_Valide`
-- Exemple logique intégrée :  
-  Lorsque `bDemande_fin_OF` passe à TRUE, le service envoie automatiquement une validation (`Recette_RFID=TRUE`, `OF_Valide=TRUE`).
-- Envoi manuel possible pour tester le service.
+- Actions côté **service** (Écriture):
+  - `srv_bRecette_RFID`
+  - `srv_bOF_Valide`
 
 ---
 
