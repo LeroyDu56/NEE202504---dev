@@ -38,40 +38,59 @@ export async function getOFs(): Promise<any[]> {
 }
 
 //======================================================================================
+//----------------------------- Récupérer valeurs OPC-UA -------------------------------
+//======================================================================================
+export async function fetchOpcuaValues() {
+  const response: AxiosResponse<any> = await axios.get("http://localhost:8000/opcua");
+
+  // Exemple de réponse JSON attendue :
+  // {
+  //   "AutWriteOF": true,
+  //   "NumeroOF": "OF-2025-001",
+  //   "RecetteOF": "Recette-A",
+  //   "QuantiteOF": 120,
+  //   "RoleUser": "OperateurA"
+  // }
+
+  return {
+    AutWriteOF: response.data.AutWriteOF,
+    NumeroOF: response.data.NumeroOF,
+    RecetteOF: response.data.RecetteOF,
+    QuantiteOF: response.data.QuantiteOF,
+    RoleUser: response.data.RoleUser,
+  };
+}
+
+//======================================================================================
 //------------------------------- Récupérer les logs -----------------------------------
 //======================================================================================
 export async function fetchLogsSimu() {
-  await new Promise(resolve => setTimeout(resolve, 500)); // simulation délai
-  return [
-    {
-      LogsId: 1,
-      CodeLog: 100,
-      Ts: "2025-09-30T09:15:00Z",
-      Source: "App",
-      RequestId: "abc-123",
-      Message: "Connexion réussie",
-      Utilisateur: "OperateurA",
-    },
-    {
-      LogsId: 2,
-      CodeLog: 200,
-      Ts: "2025-09-30T09:20:00Z",
-      Source: "Serveur API",
-      RequestId: "def-456",
-      Message: "Création OF",
-      Utilisateur: "OperateurB",
-    },
-    {
-      LogsId: 3,
-      CodeLog: 300,
-      Ts: "2025-09-30T09:30:00Z",
-      Source: "Machine X",
-      RequestId: null,
-      Message: "OF terminé",
-      Utilisateur: "OperateurC",
-    },
-  ];
+  const response: AxiosResponse<any[]> = await axios.get("http://localhost:8000/logs");
+
+  // Exemple de réponse JSON attendue :
+  // [
+  //   {
+  //     "LogsId": 1,
+  //     "CodeLog": 100,
+  //     "Ts": "2025-09-30T09:15:00Z",
+  //     "Source": "App",
+  //     "RequestId": "abc-123",
+  //     "Message": "Connexion réussie",
+  //     "Utilisateur": "OperateurA"
+  //   }
+  // ]
+
+  return response.data.map((log: any) => ({
+    LogsId: log.LogsId,
+    CodeLog: log.CodeLog,
+    Ts: log.Ts,
+    Source: log.Source,
+    RequestId: log.RequestId,
+    Message: log.Message,
+    Utilisateur: log.Utilisateur,
+  }));
 }
+
 
 //======================================================================================
 //---------------------------- Créer un OF stocké dans MySQL ---------------------------

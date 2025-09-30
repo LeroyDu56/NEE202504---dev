@@ -1,6 +1,33 @@
 <template>
   <div class="log-page">
-    <!-- En-tête -->
+    <!-- Section OPC-UA -->
+    <div class="opcua-container">
+      <h3>⚙️ Valeurs OPC-UA (Simulation)</h3>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>AutWriteOF</th>
+              <th>NumeroOF</th>
+              <th>RecetteOF</th>
+              <th>QuantiteOF</th>
+              <th>RoleUser</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{{ opcua?.AutWriteOF ?? '-' }}</td>
+              <td>{{ opcua?.NumeroOF ?? '-' }}</td>
+              <td>{{ opcua?.RecetteOF ?? '-' }}</td>
+              <td>{{ opcua?.QuantiteOF ?? '-' }}</td>
+              <td>{{ opcua?.RoleUser ?? '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- En-tête des journaux -->
     <div class="page-header">
       <h2>📄 Journaux d'activité (Logs)</h2>
     </div>
@@ -48,9 +75,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { fetchLogsSimu } from '@/services/api'; // ✅ chemin corrigé
+import { fetchLogsSimu, fetchOpcuaValues } from '@/services/api'; // ✅ route API
 
-// Interface de log
+// Interfaces
 interface Log {
   LogsId: number;
   CodeLog: number;
@@ -61,9 +88,18 @@ interface Log {
   Utilisateur?: string;
 }
 
+interface OpcuaValues {
+  AutWriteOF: boolean;
+  NumeroOF: string;
+  RecetteOF: string;
+  QuantiteOF: number;
+  RoleUser: string;
+}
+
 // Variables réactives
 const logs = ref<Log[]>([]);
 const isLoading = ref(false);
+const opcua = ref<OpcuaValues | null>(null);
 let refreshTimer: number | null = null;
 
 // Fonction pour formater la date/heure lisiblement
@@ -72,14 +108,16 @@ function formatDate(dateStr: string): string {
   return date.toLocaleString();
 }
 
-// Fonction pour récupérer les logs via API simulée
-async function fetchLogs() {
+// Fonction pour récupérer les logs + OPC-UA
+async function fetchData() {
   isLoading.value = true;
   try {
-    logs.value = await fetchLogsSimu(); // ✅ simulation locale
+    logs.value = await fetchLogsSimu();
+    opcua.value = await fetchOpcuaValues();
   } catch (error) {
-    console.error('Erreur fetch logs:', error);
-    logs.value = []; // on vide en cas d'erreur
+    console.error('Erreur fetch logs/opcua:', error);
+    logs.value = [];
+    opcua.value = null;
   } finally {
     isLoading.value = false;
   }
@@ -87,8 +125,8 @@ async function fetchLogs() {
 
 // Appel initial au montage + actualisation toutes les 10 secondes
 onMounted(() => {
-  fetchLogs();
-  refreshTimer = window.setInterval(fetchLogs, 10000);
+  fetchData();
+  refreshTimer = window.setInterval(fetchData, 10000);
 });
 
 // Nettoyage à la destruction du composant
@@ -102,23 +140,26 @@ onUnmounted(() => {
   padding: 20px;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
+/* Section OPC-UA */
+.opcua-container {
+  margin-bottom: 20px;
+  padding: 15px;
+  border-radius: 12px;
+  background: #f5f9ff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.page-header h2 {
-  font-size: 24px;
-  font-weight: bold;
+.opcua-container h3 {
+  margin-bottom: 10px;
   color: #2c3e50;
 }
 
+/* Styles des tableaux (logs et OPC-UA) */
 .table-container {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
 }
 
 table {
@@ -136,7 +177,7 @@ thead {
 
 th, td {
   padding: 14px 12px;
-  text-align: left;
+  text-align: center;
 }
 
 tbody tr:nth-child(even) {
