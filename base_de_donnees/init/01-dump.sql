@@ -2,9 +2,10 @@
 SET NAMES utf8mb4;
 SET time_zone = '+00:00';
 
--- CREATE DATABASE (optionnel si déjà créé via docker-compose)
--- CREATE DATABASE IF NOT EXISTS `NEE_Electronic`
---   DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+-- Création base (sécurisée : ne plante pas si elle existe déjà)
+CREATE DATABASE IF NOT EXISTS `NEE_Electronic`
+  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
 USE `NEE_Electronic`;
 
 -- Nettoyage
