@@ -5,10 +5,12 @@
     <div class="nav-links">
       <RouterLink to="/synoptique">Synoptique</RouterLink>
       <RouterLink to="/of">Ordres de fabrication</RouterLink>
+      <RouterLink to="/logs">Logs</RouterLink> <!-- Bouton ajouté -->
       <RouterLink to="/">Déconnexion</RouterLink>
     </div>
   </nav>
 </template>
+
 
 <script setup lang="ts">
 import { RouterLink, useRoute } from "vue-router";

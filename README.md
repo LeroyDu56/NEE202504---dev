@@ -1,5 +1,19 @@
 # Vue 3 + TypeScript + Vite
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+# Se placer dans le dossier du projet
+cd /chemin/vers/ton/projet
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+# Construire l'image Docker
+docker build -t mon-vue-app .
+
+# Lancer le conteneur
+docker run -d -p 8080:80 --name mon-vue-conteneur mon-vue-app
+
+# Vérifier que le conteneur tourne
+docker ps
+
+# Arrêter le conteneur
+docker stop mon-vue-conteneur
+
+# Redémarrer le conteneur
+docker start mon-vue-conteneur
