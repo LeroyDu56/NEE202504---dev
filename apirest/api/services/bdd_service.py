@@ -4,6 +4,9 @@ from sqlalchemy.exc import OperationalError
 import os
 from dotenv import load_dotenv
 from api.models.user_model import Base, User
+import logging
+
+logger = logging.getLogger("BDD")
 
 load_dotenv()  # Charge les variables d'environnement
 
@@ -30,7 +33,7 @@ class Database:
                 conn.execute(text("SELECT 1"))
             return True
         except OperationalError as e:
-            print(f"Erreur de connexion : {e}")
+            logger.error(f"Erreur de connexion : {e}")
             return False
 
     def get_role_by_tag(self, session: Session, uid_hex: str) -> int | None:
