@@ -5,7 +5,7 @@
     <div class="nav-links">
       <RouterLink to="/synoptique">Synoptique</RouterLink>
       <RouterLink to="/of">Ordres de fabrication</RouterLink>
-      <RouterLink to="/logs">Logs</RouterLink> <!-- Bouton ajouté -->
+      <RouterLink to="/log">Log</RouterLink> <!-- Bouton ajouté -->
       <RouterLink to="/">Déconnexion</RouterLink>
     </div>
   </nav>
