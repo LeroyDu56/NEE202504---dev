@@ -16,17 +16,23 @@ class OpcUaServer:
         self.is_connected = False
 
     async def connect(self) -> bool:
+        """
+        Essaie de se connecter au serveur OPC UA.
+        Retourne True si la connexion réussie, False sinon.
+        """
         try:
             self.client = Client(self.endpoint_url)
+
             if self.username and self.password:
                 await self.client.set_user(self.username)
                 await self.client.set_password(self.password)
+
             await self.client.connect()
+            print(f"✅ Connexion OPC UA réussie : {self.endpoint_url}")
             self.is_connected = True
-            logger.info(f"Connexion OPC UA réussie : {self.endpoint_url}")
             return True
         except Exception as e:
-            logger.error(f"Erreur de connexion OPC UA : {e}")
+            print(f"❌ Erreur de connexion OPC UA : {e}")
             self.is_connected = False
             return False
 
@@ -135,6 +141,32 @@ class OpcUaServer:
             results.update(res)
 
         return results
+
+    async def ping(self):
+        try:
+            async with Client(url=self.endpoint_url) as client:
+                if self.username and self.password:
+                    await client.set_user(self.username, self.password)
+                await client.nodes.server.get_status()
+                return True
+        except Exception as e:
+            print("Erreur OPC UA:", e)
+            return False
+
+    async def get_data(self):
+        try:
+            async with Client(url=self.endpoint_url) as client:
+                if self.username and self.password:
+                    await client.set_user(self.username, self.password)
+                namespaces = await client.get_namespace_array()
+                root_children = await client.nodes.root.get_children()
+                return {
+                    "namespaces": namespaces,
+                    "root_children": [str(n) for n in root_children]
+                }
+        except Exception as e:
+            print("Erreur OPC UA:", e)
+            return None
 
     # ------------------- Déconnexion -------------------
 

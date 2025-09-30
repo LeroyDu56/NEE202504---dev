@@ -1,23 +1,46 @@
-from fastapi import FastAPI, HTTPException, Request, Depends
+import os
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict
-from services.odoo_service import Odoo
-from services.opcua_service import OpcUaServer
-from services.bdd_service import Database
-from api.schemas.of_schema import OFData
+from api.config.log_config import setup_logging
+from api.schemas.schema import WriteData, WriteMultipleData, ReadResponse, ReadMultipleResponse
+from api.services.service_opcua import OPCUAClient, OPCUAClientError
+from api.services.odoo_service import ERP
+from api.services.bdd_service import Database
 from api.schemas.user_schema import TagRequest, TagResponse
 from sqlalchemy.orm import Session
-from api.models.user_model import Base, User
-import os
+from asyncua import ua
 from dotenv import load_dotenv
-import uvicorn
-import logging
+import traceback
+from typing import List, Dict
 from contextlib import contextmanager
+from config.log_config import setup_logging
 
 app = FastAPI(title="API NEE202504")
 
-logger = logging.getLogger(__name__)
+logger = setup_logging("APIREST")
 
+MYSQL_CONFIG = {
+    "host": "localhost",
+    "user": "admin",
+    "password": "admin",
+    "database": "mydb"
+}
+
+# API
+api_logger = setup_logging("api", logfile="logs/api.log", mysql_conf=MYSQL_CONFIG)
+api_logger.info("API REST démarrée")
+
+# OPCUA
+opcua_logger = setup_logging("opcua", logfile="logs/opcua.log", mysql_conf=MYSQL_CONFIG)
+opcua_logger.info("Client OPCUA initialisé")
+
+# ERP
+erp_logger = setup_logging("erp", logfile="logs/erp.log", mysql_conf=MYSQL_CONFIG)
+erp_logger.info("ERP connecté")
+
+# MQTT
+mqtt_logger = setup_logging("mqtt", logfile="logs/mqtt.log", mysql_conf=MYSQL_CONFIG)
+mqtt_logger.info("Client MQTT démarré")
 # Configurer CORS (pour autoriser les requêtes depuis ta supervision)
 app.add_middleware(
     CORSMiddleware,
@@ -28,15 +51,42 @@ app.add_middleware(
 )
 
 # Instance de la classe Odoo (à initialiser une seule fois)
-odoo = Odoo(
+odoo = ERP(
     url=os.getenv("ODOO_URL", "http://localhost:8069"),
     database=os.getenv("ODOO_DB", "mydb"),
     username=os.getenv("ODOO_USER", "OperateurA@nee.com"),
     password=os.getenv("ODOO_PASSWORD", "ton_mot_de_passe"),
 )
 
-# Instance de la classe OpcUaServer
-opcua = OpcUaServer(endpoint_url="opc.tcp://localhost:53530/OPCUA/SimulationServer")
+bdd = Database()
+
+SERVER_URL = "opc.tcp://192.168.10.10:4840"
+opc = OPCUAClient(SERVER_URL)
+
+# Ta liste de nœuds comme tu avais
+NODES_TO_READ = [
+    "ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.AutWriteOF",
+    "ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.NumeroOF",
+    "ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.RecetteOF",
+    "ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.QuantiteOF",
+    "ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.RoleUser"
+]
+
+@app.on_event("startup")
+async def startup_event():
+    try:
+        await opc.connect()
+        logger.info("Client OPC UA connecté à l’API")
+    except Exception as e:
+        logger.error(f"Erreur connexion au startup : {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    try:
+        await opc.disconnect()
+        logger.info("Client OPC UA déconnecté à l’API")
+    except Exception as e:
+        logger.error(f"Erreur déconnexion : {e}")
 
 # Endpoint pour récupérer les OFs
 @app.get("/api/erp/ofs", response_model=List[Dict], tags=["Ordre de Fabrication"])
@@ -64,88 +114,56 @@ async def get_ofs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur interne : {str(e)}")
 
+@app.get("/api/opcua/read-all-values", response_model=ReadMultipleResponse)
+async def read_all_values():
+    if not opc.is_connected():
+        raise HTTPException(status_code=500, detail="Client OPC UA non connecté")
+    results: List[ReadResponse] = []
+    for nid in NODES_TO_READ:
+        try:
+            val = await opc.read(nid)
+            results.append(ReadResponse(node_id=nid, value=val))
+        except OPCUAClientError as e:
+            logger.warning(f"Impossible de lire {nid}: {e}")
+            results.append(ReadResponse(node_id=nid, value=None, error=str(e)))
+        except Exception as e:
+            logger.error(f"Erreur inattendue lecture {nid}: {e}")
+            traceback.print_exc()
+            results.append(ReadResponse(node_id=nid, value=None, error="Erreur interne"))
+    return ReadMultipleResponse(results=results)
 
 @app.post("/api/opcua/write-of")
-async def write_of_to_opcua(of_data: OFData):
+async def write_of(data: WriteMultipleData):
+    if not opc.is_connected():
+        raise HTTPException(status_code=500, detail="Client OPC UA non connecté")
+
+    # Lire la valeur de AutWriteOF
+    aut_write_value = await opc.read("ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.AutWriteOF")
+    if not aut_write_value:
+        raise HTTPException(status_code=400, detail="AutWriteOF est à False, écriture non autorisée")
+
+    # Construire un mapping node_id → valeur
+    mapping = {}
+    variant_types = {}
+    for w in data.writes:
+        nid = next((nid for nid in NODES_TO_READ if w.node_name in nid), None)
+        if not nid:
+            # on continue sans écriture pour celui-ci
+            continue
+        mapping[nid] = w.value
+        if w.variant_type:
+            try:
+                variant_types[nid] = getattr(ua.VariantType, w.variant_type)
+            except Exception:
+                # type non reconnu : on ne met pas dans variant_types
+                pass
+
+    # Effectuer l'écriture multiple
     try:
-        # Connexion au serveur OPC UA si ce n'est pas déjà fait
-        if not opcua.is_connected:
-            connected = await opcua.connect()
-            if not connected:
-                raise HTTPException(status_code=500, detail="Échec de la connexion au serveur OPC UA")
-
-        # Vérification de la variable booléenne avant d'écrire
-        aut_result = await opcua.read_node_value("ns=3;s=AutWriteOF")
-        aut_write_of = aut_result.get("ns=3;s=AutWriteOF")
-        
-        if aut_write_of is None:
-            raise HTTPException(status_code=500, detail="Impossible de lire la variable de contrôle AutWriteOF")
-        
-        if not isinstance(aut_write_of, bool):
-            raise HTTPException(status_code=500, detail=f"La variable de contrôle n'est pas booléenne (type: {type(aut_write_of)})")
-        
-        if not aut_write_of:
-            raise HTTPException(status_code=403, detail="Écriture OPC UA interdite (AutWriteOF=False)")
-
-        # Préparation des données à écrire
-        data_to_write = {
-            "ns=3;s=NumeroOF": of_data.OF,
-            "ns=3;s=RecetteOF": of_data.Recette,
-            "ns=3;s=QuantiteOF": of_data.Quantite
-        }
-        # Écriture dans OPC UA
-        write_results = await opcua.write_multiple_values(data_to_write)
-        
-        # Analyse détaillée des résultats d'écriture
-        successful_writes = {k: v for k, v in write_results.items() if v}
-        failed_writes = {k: v for k, v in write_results.items() if not v}
-        
-        if failed_writes:
-            logger.error(f"Échecs d'écriture: {failed_writes}")
-            raise HTTPException(
-                status_code=500, 
-                detail={
-                    "message": "Certaines écritures ont échoué",
-                    "successful": list(successful_writes.keys()),
-                    "failed": list(failed_writes.keys())
-                }
-            )
-
-        # Lecture pour vérification
-        verification_values = await opcua.read_multiple_values(list(data_to_write.keys()))
-        
-        # Vérifier que les valeurs écrites correspondent aux valeurs lues
-        verification_errors = []
-        for node_id, written_value in data_to_write.items():
-            read_value = verification_values.get(node_id)
-            if read_value != written_value:
-                verification_errors.append({
-                    "node_id": node_id,
-                    "written": written_value,
-                    "read": read_value
-                })
-        
-        response_data = {
-            "status": "success",
-            "message": "Toutes les données ont été écrites avec succès",
-            "data_written": data_to_write,
-            "verification_values": verification_values,
-            "write_results": write_results
-        }
-        
-        if verification_errors:
-            response_data["verification_warnings"] = verification_errors
-            logger.warning(f"Divergences lors de la vérification: {verification_errors}")
-        
-        return response_data
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Erreur inattendue: {e}")
-        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
-
-bdd = Database()
+        result = await opc.write_multiple(mapping, variant_types)
+        return {"status": "success", "result": result}
+    except OPCUAClientError as e:
+        raise HTTPException(status_code=500, detail=f"Erreur d'écriture : {str(e)}")
 
 # Gestion de la session pour FastAPI (compatible avec async def)
 @contextmanager
@@ -174,20 +192,37 @@ async def get_role(
     # Récupère le rôle (int)
     role = bdd.get_role_by_tag(session, tag_request.tag_rfid)
 
-    if not opcua.is_connected:
-        connected = await opcua.connect()
+    if not opc.is_connected:
+        connected = await opc.connect()
         if not connected:
             raise HTTPException(status_code=500, detail="Échec de la connexion au serveur OPC UA")
 
-    node_id = "ns=3;s=RoleUser"  # À adapter selon ton serveur OPC UA
-    opcua_result = await opcua.write_node_value(node_id, role)
+    node_id = "ns=4;s=RoleUser"  # À adapter selon ton serveur OPC UA
+    opcua_result = await opc.write_node_value(node_id, role)
     success = opcua_result.get(node_id, False)
 
 
     # Retour JSON à la webvisu
     return {"tag_rfid": tag_request.tag_rfid, "role": role, "opcua_written": success}
 
-# Point d'entrée pour lancer l'API
-if __name__ == "__main__":
     
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+@app.post("/api/opcua/subscribe")
+async def subscribe_to_nodes(node_ids: List[str]):
+    """
+    S'abonne aux changements de données des nœuds spécifiés.
+
+    :param node_ids: Liste des identifiants des nœuds à surveiller.
+    :return: Message de confirmation.
+    """
+    if not opc.is_connected():
+        raise HTTPException(status_code=500, detail="Client OPC UA non connecté")
+
+    def callback(node_id, value):
+        print(f"Changement détecté sur {node_id}: {value}")
+
+    try:
+        await opc.subscribe(node_ids, callback)
+        return {"message": "Subscription réussie"}
+    except OPCUAClientError as e:
+        raise HTTPException(status_code=500, detail=str(e))

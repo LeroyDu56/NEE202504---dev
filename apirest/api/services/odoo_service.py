@@ -1,11 +1,12 @@
 import xmlrpc.client
 from typing import List, Dict
 from dotenv import load_dotenv
-
+import logging
 load_dotenv()
 
+logger = logging.getLogger("ERP")
 
-class Odoo:
+class ERP:
     """
     Classe pour gérer la connexion à Odoo et récupérer les ordres de fabrication
     """
@@ -37,9 +38,9 @@ class Odoo:
             bool: True si la connexion est établie, False sinon
         """
         try:
-            print(f"Tentative de connexion à Odoo: {self.url}")
-            print(f"Base de données: {self.database}")
-            print(f"Utilisateur: {self.username}")
+            logger.info(f"Tentative de connexion à Odoo: {self.url}")
+            logger.info(f"Base de données: {self.database}")
+            logger.info(f"Utilisateur: {self.username}")
 
             common = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/common')
             self.uid = common.authenticate(
@@ -50,21 +51,21 @@ class Odoo:
             )
 
             if not self.uid:
-                print("Échec de l'authentification Odoo")
-                print("Vérifiez vos identifiants (URL, database, username, password)")
+                logger.error("Échec de l'authentification Odoo")
+                logger.error("Vérifiez vos identifiants (URL, database, username, password)")
                 return False
 
             self.models = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/object')
             self.is_connected = True
-            print(f"Connexion Odoo réussie - UID: {self.uid}")
+            logger.info(f"Connexion Odoo réussie - UID: {self.uid}")
             return True
 
         except ConnectionError as e:
-            print(f"Erreur de connexion réseau: {e}")
-            print("   Vérifiez que le serveur Odoo est accessible")
+            logger.error(f"Erreur de connexion réseau: {e}")
+            logger.error("   Vérifiez que le serveur Odoo est accessible")
             return False
         except Exception as e:
-            print(f"Erreur de connexion Odoo: {e}")
+            logger.error(f"Erreur de connexion Odoo: {e}")
             return False
 
     def get_ofs(self) -> List[Dict]:
@@ -76,11 +77,11 @@ class Odoo:
         """
         # Si non connecté, essaie de se connecter
         if not self.is_connected and not self.connect():
-            print("Impossible de récupérer les OFs : pas de connexion Odoo")
+            logger.error("Impossible de récupérer les OFs : pas de connexion Odoo")
             return []
 
         try:
-            print("Récupération des ordres de fabrication depuis Odoo...")
+            logger.info("Récupération des ordres de fabrication depuis Odoo...")
 
             manufacturing_orders = self.models.execute_kw(
                 self.database, self.uid, self.password,
@@ -110,15 +111,15 @@ class Odoo:
                     processed_order = order
                     processed_orders.append(processed_order)
                 except Exception as e:
-                    print(f"⚠️ Erreur traitement OF {order.get('id', 'N/A')}: {e}")
+                    logger.error(f"⚠️ Erreur traitement OF {order.get('id', 'N/A')}: {e}")
                     # On continue sur l’ordre suivant
                     continue
 
-            print(f"{len(processed_orders)} ordres de fabrication récupérés avec succès")
+            logger.info(f"{len(processed_orders)} ordres de fabrication récupérés avec succès")
             return processed_orders
 
         except Exception as e:
-            print(f"Erreur lors de la récupération des OFs : {e}")
+            logger.error(f"Erreur lors de la récupération des OFs : {e}")
             return []
 
     def disconnect(self):
@@ -126,4 +127,4 @@ class Odoo:
         self.uid = None
         self.models = None
         self.is_connected = False
-        print("Connexion Odoo fermée")
+        logger.info("Connexion Odoo fermée")
