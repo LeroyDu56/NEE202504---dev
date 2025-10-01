@@ -1,56 +1,58 @@
 import os
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from api.config.log_config import setup_logging
-from api.schemas.schema import WriteData, WriteMultipleData, ReadResponse, ReadMultipleResponse
-from api.services.service_opcua import OPCUAClient, OPCUAClientError
-from api.services.odoo_service import ERP
-from api.services.bdd_service import Database
-from api.schemas.user_schema import TagRequest, TagResponse
-from sqlalchemy.orm import Session
-from asyncua import ua
-from dotenv import load_dotenv
 import traceback
 from typing import List, Dict
 from contextlib import contextmanager
-from config.log_config import setup_logging
 
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from asyncua import ua
+from dotenv import load_dotenv
+
+# 👉 Charger les variables d'environnement
+load_dotenv()
+
+# 👉 Imports internes
+from apirest.api.config.log_config import setup_logging
+from apirest.api.schemas.schema import (
+    WriteMultipleData,
+    ReadResponse,
+    ReadMultipleResponse,
+)
+from apirest.api.schemas.user_schema import TagRequest, TagResponse
+from apirest.api.services.service_opcua import OPCUAClient, OPCUAClientError
+from apirest.api.services.odoo_service import ERP
+from apirest.api.services.bdd_service import Database
+
+# =======================
+# Initialisation FastAPI
+# =======================
 app = FastAPI(title="API NEE202504")
 
-logger = setup_logging("APIREST")
+# =======================
+# Loggers
+# =======================
+logger = setup_logging("APIREST", logfile="logs/apirest.log", use_mysql=True)
 
-MYSQL_CONFIG = {
-    "host": "localhost",
-    "user": "admin",
-    "password": "admin",
-    "database": "mydb"
-}
+api_logger = setup_logging("api", logfile="logs/api.log", use_mysql=True)
+opcua_logger = setup_logging("opcua", logfile="logs/opcua.log", use_mysql=True)
+erp_logger = setup_logging("erp", logfile="logs/erp.log", use_mysql=True)
+mqtt_logger = setup_logging("mqtt", logfile="logs/mqtt.log", use_mysql=True)
 
-# API
-api_logger = setup_logging("api", logfile="logs/api.log", mysql_conf=MYSQL_CONFIG)
-api_logger.info("API REST démarrée")
-
-# OPCUA
-opcua_logger = setup_logging("opcua", logfile="logs/opcua.log", mysql_conf=MYSQL_CONFIG)
-opcua_logger.info("Client OPCUA initialisé")
-
-# ERP
-erp_logger = setup_logging("erp", logfile="logs/erp.log", mysql_conf=MYSQL_CONFIG)
-erp_logger.info("ERP connecté")
-
-# MQTT
-mqtt_logger = setup_logging("mqtt", logfile="logs/mqtt.log", mysql_conf=MYSQL_CONFIG)
-mqtt_logger.info("Client MQTT démarré")
-# Configurer CORS (pour autoriser les requêtes depuis ta supervision)
+# =======================
+# Configurer CORS
+# =======================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # À restreindre en production
+    allow_origins=["*"],  # ⚠️ à restreindre en prod
     allow_credentials=True,
-    allow_methods=["GET"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Instance de la classe Odoo (à initialiser une seule fois)
+# =======================
+# Services
+# =======================
 odoo = ERP(
     url=os.getenv("ODOO_URL", "http://localhost:8069"),
     database=os.getenv("ODOO_DB", "mydb"),
@@ -60,17 +62,42 @@ odoo = ERP(
 
 bdd = Database()
 
-SERVER_URL = "opc.tcp://192.168.10.10:4840"
+SERVER_URL = os.getenv("OPCUA_SERVER", "opc.tcp://192.168.10.10:4840")
 opc = OPCUAClient(SERVER_URL)
 
-# Ta liste de nœuds comme tu avais
+# =======================
+# Liste de nœuds OPC UA
+# =======================
 NODES_TO_READ = [
     "ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.AutWriteOF",
     "ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.NumeroOF",
     "ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.RecetteOF",
     "ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.QuantiteOF",
-    "ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.RoleUser"
+    "ns=4;s=|var|WAGO 751-9301 Compact Controller 100.Application.GVL.OPCUA.Ilot_1.RoleUser",
 ]
+
+# =======================
+# Events FastAPI
+# =======================
+@app.on_event("startup")
+async def startup_event():
+    try:
+        await opc.connect()
+        logger.info("Client OPC UA connecté à l’API")
+    except Exception as e:
+        logger.error(f"Erreur connexion au startup : {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    try:
+        await opc.disconnect()
+        logger.info("Client OPC UA déconnecté à l’API")
+    except Exception as e:
+        logger.error(f"Erreur déconnexion : {e}")
+
+# =======================
+# Routes API
+# =======================
 
 @app.on_event("startup")
 async def startup_event():
@@ -88,31 +115,6 @@ async def shutdown_event():
     except Exception as e:
         logger.error(f"Erreur déconnexion : {e}")
 
-# Endpoint pour récupérer les OFs
-@app.get("/api/erp/ofs", response_model=List[Dict], tags=["Ordre de Fabrication"])
-async def get_ofs():
-    """
-    Récupère la liste des ordres de fabrication depuis Odoo.
-    Retourne :
-    - Liste des OFs (avec leurs champs principaux)
-    - Code 200 si succès
-    - Code 500 si erreur
-    """
-    try:
-        # Connexion à Odoo si ce n'est pas déjà fait
-        if not odoo.is_connected:
-            if not odoo.connect():
-                raise HTTPException(status_code=500, detail="Échec de la connexion à Odoo")
-
-        # Récupération des OFs
-        ofs = odoo.get_ofs()
-        if not ofs:
-            raise HTTPException(status_code=404, detail="Aucun ordre de fabrication trouvé")
-
-        return ofs
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur interne : {str(e)}")
 
 @app.get("/api/opcua/read-all-values", response_model=ReadMultipleResponse)
 async def read_all_values():
@@ -226,3 +228,33 @@ async def subscribe_to_nodes(node_ids: List[str]):
         return {"message": "Subscription réussie"}
     except OPCUAClientError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+# Endpoint pour récupérer les OFs
+@app.get("/api/erp/ofs", response_model=List[Dict], tags=["Ordre de Fabrication"])
+async def get_ofs():
+    """
+    Récupère la liste des ordres de fabrication depuis Odoo.
+    Retourne :
+    - Liste des OFs (avec leurs champs principaux)
+    - Code 200 si succès
+    - Code 500 si erreur
+    """
+    try:
+        # Connexion à Odoo si ce n'est pas déjà fait
+        if not odoo.is_connected:
+            if not odoo.connect():
+                raise HTTPException(status_code=500, detail="Échec de la connexion à Odoo")
+
+        # Récupération des OFs
+        ofs = odoo.get_ofs()
+        if not ofs:
+            raise HTTPException(status_code=404, detail="Aucun ordre de fabrication trouvé")
+
+        return ofs
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur interne : {str(e)}")
