@@ -5,7 +5,7 @@ import axios, { AxiosResponse } from "axios";
 //---------------------------------- Configuration Axios --------------------------------
 //======================================================================================
 const api = axios.create({
-  baseURL: "http://localhost:8000", // 🔧 adapte si ton backend change
+  baseURL: "http://localhost:9010", // 🔧 adapte si ton backend change
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -106,13 +106,43 @@ export async function createOF(data: {
   return response.data;
 }
 
+
 //======================================================================================
 //------------------------------------- Lancer un OF -----------------------------------
 //======================================================================================
-export async function launchOF(ofId: string): Promise<any> {
-  const response: AxiosResponse<any> = await api.post(`/of/${ofId}/launch`);
+export async function launchOF(of: {
+  of: string;
+  codeProduit: string;
+  quantite: number;
+}): Promise<any> {
+  // ⚡ Construction du JSON OPC-UA
+  const payload = {
+    writes: [
+      {
+        node_name: "ns=4;s=|var|WAGO 750-8302 PFC300 2ETH RS.Application.GVL.OPCUA.Ilot_1.NumeroOF",
+        value: Number(of.of), // N° OF
+        variant_type: "UInt16",
+      },
+      {
+        node_name: "ns=4;s=|var|WAGO 750-8302 PFC300 2ETH RS.Application.GVL.OPCUA.Ilot_1.RecetteOF",
+        value: Number(of.codeProduit), // ici tu mets ton code produit (⚠️ à adapter selon ton mapping réel)
+        variant_type: "UInt16",
+      },
+      {
+        node_name: "ns=4;s=|var|WAGO 750-8302 PFC300 2ETH RS.Application.GVL.OPCUA.Ilot_1.QuantiteOF",
+        value: Number(of.quantite),
+        variant_type: "UInt16",
+      },
+    ],
+  };
+
+  console.log("📤 Payload envoyé au backend :", payload);
+
+  // POST direct vers ton backend
+  const response: AxiosResponse<any> = await api.post("/opcua/write", payload);
   return response.data;
 }
+
 
 //======================================================================================
 //------------------------------------ Supprimer un OF ---------------------------------
@@ -128,18 +158,10 @@ export async function deleteOF(ofId: string): Promise<any> {
 export async function loginWithBadge(badgeId: string) {
   console.log("💳 Envoi du badge au backend :", badgeId);
 
-  // 🔧 décommente quand ton backend sera prêt
-  // const response = await api.post("/login/rfid", { badgeId });
-  // return response;
+  // Ici on envoie directement à ton API REST
+  const response = await api.post("/bdd/get_role", { badgeId });
 
-  // Simulation locale
-  return Promise.resolve({
-    data: {
-      success: true,
-      username: "Utilisateur Test",
-      badgeId,
-    },
-  });
+  return response;
 }
 
 //======================================================================================

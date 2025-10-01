@@ -208,12 +208,12 @@ async function handleLaunchOF() {
     alert("Veuillez sélectionner un OF");
     return;
   }
-  if (selectedOF.value.provenance === "Opérateur") {
-    alert("Cet OF est local (pas encore dans l'ERP).");
-    return;
-  }
   try {
-    await launchOF(selectedOF.value.id!);
+    await launchOF({
+      of: selectedOF.value.of,
+      codeProduit: selectedOF.value.codeProduit,
+      quantite: selectedOF.value.quantite,
+    });
     alert("OF lancé avec succès !");
   } catch (err) {
     console.error("Erreur lancement OF :", err);
