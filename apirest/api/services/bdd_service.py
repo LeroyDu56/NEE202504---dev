@@ -15,8 +15,8 @@ class Database:
     def __init__(self):
         db_url = (
             f"mysql+pymysql://{os.getenv('MYSQL_USER')}:{os.getenv('MYSQL_PASSWORD')}"
-            f"@{os.getenv('MYSQL_HOST', 'localhost')}:{os.getenv('MYSQL_PORT', '3306')}/{os.getenv('MYSQL_DATABASE')}"
-        )
+            f"@{os.getenv('MYSQL_HOST', 'mysql')}:3306/{os.getenv('MYSQL_DATABASE')}"
+)
         self.engine = create_engine(db_url, pool_pre_ping=True)
         self.Session = sessionmaker(bind=self.engine, autocommit=False, autoflush=False)
         Base.metadata.create_all(bind=self.engine)

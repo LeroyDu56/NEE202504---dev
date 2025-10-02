@@ -17,46 +17,66 @@
         class="hidden-input"
       />
 
-      <!-- Message de connexion -->
+      <!-- ✅ Affichage du badge scanné brut -->
+      <p v-if="lastBadge" class="badge-display">
+        Badge scanné (brut) : {{ lastBadge }}
+      </p>
+
+      <!-- ✅ Message de connexion -->
       <p v-if="message" class="message">{{ message }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from "vue";
-import { useRouter } from "vue-router";
 import { loginWithBadge } from "@/services/api"; // 👈 appel backend
+import { onBeforeUnmount, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
 const router = useRouter();
 const badgeId = ref("");
+const lastBadge = ref(""); // garde la valeur brute scannée
 const badgeInput = ref<HTMLInputElement | null>(null);
 const message = ref("");
+
+// ✅ Fonction de conversion ASCII → Hex
+function asciiToHex(str: string): string {
+  const encoder = new TextEncoder(); // encode en UTF-8
+  const bytes = encoder.encode(str); // Uint8Array des octets
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
+}
 
 // ✅ Dès que Entrée est pressé → connexion via API
 async function onEnter() {
   if (!badgeId.value.trim()) return;
 
+  lastBadge.value = badgeId.value; // garde le brut pour affichage
+  const convertedBadge = asciiToHex(badgeId.value); // conversion avant envoi
+
   message.value = "Vérification en cours...";
-  console.log("Badge scanné :", badgeId.value);
+  console.log("Badge scanné brut :", badgeId.value);
+  console.log("Badge converti (hex) :", convertedBadge);
 
   try {
-    const res = await loginWithBadge(badgeId.value);
+    const res = await loginWithBadge(convertedBadge);
 
-    // si backend renvoie un user (ex: { username: "Paul" })
     if (res.data && res.data.username) {
-      message.value = `Bienvenue ${res.data.username} !`;
+      message.value = `Bienvenue ${res.data.username} ! (Badge ${convertedBadge})`;
       setTimeout(() => {
-        router.push("/OF"); // redirection page OF
+        router.push("/OF");
       }, 800);
     } else {
-      message.value = "Badge non reconnu ❌";
+      message.value = `Badge ${convertedBadge} non reconnu ❌`;
+      console.warn("Badge rejeté :", convertedBadge);
     }
   } catch (err) {
     console.error("Erreur auth badge:", err);
-    message.value = "Échec de l’authentification ❌";
+    message.value = `Échec de l’authentification pour le badge ${convertedBadge} ❌`;
   } finally {
-    badgeId.value = ""; // reset
+    badgeId.value = ""; // reset du champ de saisie
   }
 }
 
@@ -74,7 +94,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* ✅ Styles identiques */
+/* ✅ Styles généraux */
 .login-page {
   display: flex;
   justify-content: center;
@@ -123,6 +143,14 @@ onBeforeUnmount(() => {
   outline: none;
 }
 
+/* ✅ Nouveau style pour afficher le badge */
+.badge-display {
+  margin-top: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #e67e22;
+}
+
 .message {
   margin-top: 15px;
   color: #42b983;
@@ -131,13 +159,28 @@ onBeforeUnmount(() => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.7; }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 </style>

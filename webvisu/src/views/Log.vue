@@ -16,11 +16,11 @@
           </thead>
           <tbody>
             <tr>
-              <td>{{ opcua?.AutWriteOF ?? '-' }}</td>
-              <td>{{ opcua?.NumeroOF ?? '-' }}</td>
-              <td>{{ opcua?.RecetteOF ?? '-' }}</td>
-              <td>{{ opcua?.QuantiteOF ?? '-' }}</td>
-              <td>{{ opcua?.RoleUser ?? '-' }}</td>
+              <td>{{ opcua?.AutWriteOF ?? "-" }}</td>
+              <td>{{ opcua?.NumeroOF ?? "-" }}</td>
+              <td>{{ opcua?.RecetteOF ?? "-" }}</td>
+              <td>{{ opcua?.QuantiteOF ?? "-" }}</td>
+              <td>{{ opcua?.RoleUser ?? "-" }}</td>
             </tr>
           </tbody>
         </table>
@@ -50,12 +50,14 @@
           <!-- Affichage des logs -->
           <tr v-for="log in logs" :key="log.LogsId">
             <td>{{ log.LogsId }}</td>
-            <td><span class="badge code">{{ log.CodeLog }}</span></td>
+            <td>
+              <span class="badge code">{{ log.CodeLog }}</span>
+            </td>
             <td>{{ formatDate(log.Ts) }}</td>
             <td>{{ log.Source }}</td>
-            <td>{{ log.RequestId || '-' }}</td>
+            <td>{{ log.RequestId || "-" }}</td>
             <td>{{ log.Message }}</td>
-            <td>{{ log.Utilisateur || 'N/A' }}</td>
+            <td>{{ log.Utilisateur || "N/A" }}</td>
           </tr>
 
           <!-- Message de chargement -->
@@ -74,8 +76,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { fetchLogsSimu, fetchOpcuaValues } from '@/services/api'; // ✅ route API
+import { fetchLogsSimu, fetchOpcuaValues } from "@/services/api"; // ✅ route API
+import { onMounted, onUnmounted, ref } from "vue";
 
 // Interfaces
 interface Log {
@@ -115,7 +117,7 @@ async function fetchData() {
     logs.value = await fetchLogsSimu();
     opcua.value = await fetchOpcuaValues();
   } catch (error) {
-    console.error('Erreur fetch logs/opcua:', error);
+    console.error("Erreur fetch logs/opcua:", error);
     logs.value = [];
     opcua.value = null;
   } finally {
@@ -175,7 +177,8 @@ thead {
   letter-spacing: 0.5px;
 }
 
-th, td {
+th,
+td {
   padding: 14px 12px;
   text-align: center;
 }

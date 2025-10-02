@@ -16,8 +16,11 @@
             {{ selectedOF.statut }}
           </span>
         </p>
+        <button class="refresh" @click="loadOFs">🔄 Récupérer OFs</button>
         <button class="primary" @click="openModal">➕ Créer un OF</button>
-        <button class="success" @click="handleLaunchOF">🚀 Lancer l'OF (ERP)</button>
+        <button class="success" @click="handleLaunchOF">
+          🚀 Lancer l'OF (ERP)
+        </button>
         <!-- ✅ Supprimer uniquement si OF opérateur -->
         <button
           class="danger"
@@ -90,8 +93,10 @@
         <input type="date" v-model="newOF.datePlanifiee" required />
 
         <div class="modal-actions">
-          <button type="submit" class="primary"> Enregistrer</button>
-          <button type="button" class="danger" @click="closeModal"> Annuler</button>
+          <button type="submit" class="primary">Enregistrer</button>
+          <button type="button" class="danger" @click="closeModal">
+            Annuler
+          </button>
         </div>
       </form>
     </dialog>
@@ -99,9 +104,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { createOF, getOFs, launchOF } from "@/services/api";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { getOFs, createOF, launchOF } from "@/services/api";
 
 // ✅ Typage OF
 interface OF {
@@ -121,6 +126,16 @@ const selectedOF = ref<OF | null>(null);
 const modal = ref<HTMLDialogElement | null>(null);
 let refreshTimer: number | null = null;
 
+// ✅ Fonction pour charger les OF depuis l’ERP
+async function loadOFs() {
+  try {
+    ofList.value = await getOFs();
+    alert("✅ OFs récupérés avec succès !");
+  } catch (err) {
+    console.error("❌ Erreur lors de la récupération des OFs:", err);
+    alert("Impossible de récupérer les OFs.");
+  }
+}
 // ✅ modèle pour un nouveau OF
 const newOF = ref<OF>({
   provenance: "Opérateur",
@@ -130,25 +145,6 @@ const newOF = ref<OF>({
   quantite: 0,
   datePlanifiee: "",
   statut: "en_attente",
-});
-
-// ✅ Fonction pour charger les OF depuis l’ERP
-async function loadOFs() {
-  try {
-    ofList.value = await getOFs();
-  } catch (err) {
-    console.error("❌ Erreur lors de la récupération des OFs:", err);
-  }
-}
-
-// ✅ Récupération des OFs au montage + rafraîchissement auto
-onMounted(async () => {
-  await loadOFs();
-  refreshTimer = window.setInterval(loadOFs, 10000); // 🔄 toutes les 10 secondes
-});
-
-onUnmounted(() => {
-  if (refreshTimer) clearInterval(refreshTimer);
 });
 
 // ✅ Sélectionner un OF
@@ -197,7 +193,7 @@ async function handleDeleteSelectedOF(of: OF) {
     alert("Impossible de supprimer un OF importé depuis l'ERP.");
     return;
   }
-  ofList.value = ofList.value.filter(item => item !== of);
+  ofList.value = ofList.value.filter((item) => item !== of);
   if (selectedOF.value === of) selectedOF.value = null;
   alert("OF supprimé (local uniquement).");
 }
@@ -255,7 +251,7 @@ function goBack() {
   background: #ecf0f1;
   padding: 6px 12px;
   border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 .selected-of strong {
   margin-right: 6px;
@@ -266,7 +262,7 @@ function goBack() {
   margin-bottom: 20px;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 table {
@@ -282,7 +278,8 @@ thead {
   letter-spacing: 0.5px;
 }
 
-th, td {
+th,
+td {
   padding: 14px 12px;
   text-align: center;
 }
@@ -312,9 +309,15 @@ tbody tr.selected {
   margin-left: 8px;
 }
 
-.badge.en_attente { background: #f39c12; }
-.badge.en_cours { background: #3498db; }
-.badge.termine { background: #2ecc71; }
+.badge.en_attente {
+  background: #f39c12;
+}
+.badge.en_cours {
+  background: #3498db;
+}
+.badge.termine {
+  background: #2ecc71;
+}
 
 /* ✅ Boutons */
 button {
@@ -331,22 +334,37 @@ button.primary {
   background: #3498db;
   color: white;
 }
-button.primary:hover { background: #2980b9; transform: translateY(-2px); }
-button.primary:active { transform: scale(0.97); }
+button.primary:hover {
+  background: #2980b9;
+  transform: translateY(-2px);
+}
+button.primary:active {
+  transform: scale(0.97);
+}
 
 button.success {
   background: #2ecc71;
   color: white;
 }
-button.success:hover { background: #27ae60; transform: translateY(-2px); }
-button.success:active { transform: scale(0.97); }
+button.success:hover {
+  background: #27ae60;
+  transform: translateY(-2px);
+}
+button.success:active {
+  transform: scale(0.97);
+}
 
 button.danger {
   background: #e74c3c;
   color: white;
 }
-button.danger:hover { background: #c0392b; transform: translateY(-2px); }
-button.danger:active { transform: scale(0.97); }
+button.danger:hover {
+  background: #c0392b;
+  transform: translateY(-2px);
+}
+button.danger:active {
+  transform: scale(0.97);
+}
 
 button.small {
   padding: 6px 12px;
@@ -360,7 +378,7 @@ dialog {
   padding: 24px;
   max-width: 420px;
   width: 90%;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 
 .modal-form {
@@ -387,12 +405,25 @@ dialog {
 .modal-form input:focus {
   border-color: #3498db;
   outline: none;
-  box-shadow: 0 0 4px rgba(52,152,219,0.4);
+  box-shadow: 0 0 4px rgba(52, 152, 219, 0.4);
 }
 
 .modal-actions {
   display: flex;
   justify-content: space-between;
   margin-top: 15px;
+}
+
+/* ✅ Bouton "Récupérer OFs" */
+button.refresh {
+  background: #8e44ad;
+  color: white;
+}
+button.refresh:hover {
+  background: #732d91;
+  transform: translateY(-2px);
+}
+button.refresh:active {
+  transform: scale(0.97);
 }
 </style>

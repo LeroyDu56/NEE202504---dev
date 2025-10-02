@@ -69,12 +69,12 @@ if __name__ == "__main__":
         db.list_users(session)
 
         # Test récupération rôle par tag RFID
-        tag_rfid = "2628287182D"  # <-- remplace par un tag existant
-        role = db.get_role_by_tag(session, tag_rfid)
+        badgeID = "2628287182D"  # <-- remplace par un tag existant
+        role = db.get_role_by_tag(session, badgeID)
         if role:
-            print(f"✅ Rôle trouvé pour le tag {tag_rfid} : {role}")
+            print(f"✅ Rôle trouvé pour le tag {badgeID} : {role}")
         else:
-            print(f"❌ Aucun utilisateur trouvé avec le tag {tag_rfid}")
+            print(f"❌ Aucun utilisateur trouvé avec le tag {badgeID}")
             print(f"{role}")
     finally:
         session.close()

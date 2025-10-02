@@ -2,8 +2,8 @@
 from pydantic import BaseModel
 
 class TagRequest(BaseModel):
-    tag_rfid: str
+    badgeID: str
 
 class TagResponse(BaseModel):
-    tag_rfid: str
+    badgeID: str
     role: int

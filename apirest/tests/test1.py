@@ -1,19 +1,33 @@
-import asyncio
-from asyncua import Client
-import traceback
+# test_postgres.py
+import os
+import psycopg2
+from psycopg2 import OperationalError
 
-async def test():
-    url = "opc.tcp://192.168.10.10:4840"  # ton serveur OPC UA
+# Paramètres de connexion
+DB_HOST = "localhost"
+DB_NAME = os.getenv("POSTGRES_DB", "odoo")
+DB_USER = os.getenv("POSTGRES_USER", "odoo")
+DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "odoo")
+DB_PORT = os.getenv("POSTGRES_PORT", 5432)
+
+def test_connection():
     try:
-        async with Client(url=url) as client:
-            # On se connecte et on récupère le Node "Server" pour le parcourir
-            server_node = client.nodes.server
-            children = await server_node.get_children()
-            print("✅ Connexion réussie ! Nombre d'enfants du nœud serveur :", len(children))
-            for child in children:
-                print(" -", await child.read_browse_name())
-    except Exception as e:
-        print("❌ Erreur OPC UA :")
-        traceback.print_exc()
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            port=DB_PORT
+        )
+        print("Connexion PostgreSQL réussie !")
+        cur = conn.cursor()
+        cur.execute("SELECT version();")
+        version = cur.fetchone()
+        print("Version PostgreSQL :", version)
+        cur.close()
+        conn.close()
+    except OperationalError as e:
+        print("Erreur de connexion PostgreSQL :", e)
 
-asyncio.run(test())
+if __name__ == "__main__":
+    test_connection()
