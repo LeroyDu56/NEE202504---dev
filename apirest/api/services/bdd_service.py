@@ -1,14 +1,15 @@
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session, declarative_base
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import OperationalError
+from apirest.api.models.user_model import Base, User
+import logging
+from typing import Optional
 import os
 from dotenv import load_dotenv
-from api.models.user_model import Base, User
-import logging
 
 logger = logging.getLogger("BDD")
 
-load_dotenv()  # Charge les variables d'environnement
+load_dotenv()
 
 class Database:
     def __init__(self):
@@ -18,16 +19,12 @@ class Database:
 )
         self.engine = create_engine(db_url, pool_pre_ping=True)
         self.Session = sessionmaker(bind=self.engine, autocommit=False, autoflush=False)
-
-        # Création des tables si elles n'existent pas
         Base.metadata.create_all(bind=self.engine)
 
     def get_session(self) -> Session:
-        """Retourne une nouvelle session SQLAlchemy."""
         return self.Session()
 
     def check_connection(self) -> bool:
-        """Teste si la connexion à la BDD est active."""
         try:
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
@@ -36,7 +33,6 @@ class Database:
             logger.error(f"Erreur de connexion : {e}")
             return False
 
-    def get_role_by_tag(self, session: Session, uid_hex: str) -> int | None:
-        """Récupère le rôle associé à un tag RFID (UidHex)."""
+    def get_role_by_tag(self, session: Session, uid_hex: str) -> Optional[int]:
         user = session.query(User).filter(User.UidHex == uid_hex).first()
-        return user.role if user else 0
+        return user.role if user else None

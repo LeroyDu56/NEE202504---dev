@@ -13,13 +13,15 @@ from dotenv import load_dotenv
 import traceback
 from typing import List, Dict
 from contextlib import contextmanager
-from config.log_config import setup_logging
 
 load_dotenv()
 
 app = FastAPI(title="API NEE202504")
 
-logger = setup_logging("APIREST")
+# =======================
+# Loggers
+# =======================
+logger = setup_logging("APIREST", logfile="logs/apirest.log", use_mysql=True)
 
 # --- Configuration MySQL ---
 MYSQL_CONFIG = {
@@ -85,6 +87,29 @@ NODES_TO_READ = [
     "ns=4;s=|var|WAGO 750-8302 PFC300 2ETH RS.Application.OPCUA.Ilot_1.QuantiteOF",
     "ns=4;s=|var|WAGO 750-8302 PFC300 2ETH RS.Application.OPCUA.Ilot_1.RoleUser"
 ]
+
+# =======================
+# Events FastAPI
+# =======================
+@app.on_event("startup")
+async def startup_event():
+    try:
+        await opc.connect()
+        logger.info("Client OPC UA connecté à l’API")
+    except Exception as e:
+        logger.error(f"Erreur connexion au startup : {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    try:
+        await opc.disconnect()
+        logger.info("Client OPC UA déconnecté à l’API")
+    except Exception as e:
+        logger.error(f"Erreur déconnexion : {e}")
+
+# =======================
+# Routes API
+# =======================
 
 @app.on_event("startup")
 async def startup_event():
@@ -284,3 +309,33 @@ async def subscribe_to_nodes(node_ids: List[str]):
         return {"message": "Subscription réussie"}
     except OPCUAClientError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+# Endpoint pour récupérer les OFs
+@app.get("/api/erp/ofs", response_model=List[Dict], tags=["Ordre de Fabrication"])
+async def get_ofs():
+    """
+    Récupère la liste des ordres de fabrication depuis Odoo.
+    Retourne :
+    - Liste des OFs (avec leurs champs principaux)
+    - Code 200 si succès
+    - Code 500 si erreur
+    """
+    try:
+        # Connexion à Odoo si ce n'est pas déjà fait
+        if not odoo.is_connected:
+            if not odoo.connect():
+                raise HTTPException(status_code=500, detail="Échec de la connexion à Odoo")
+
+        # Récupération des OFs
+        ofs = odoo.get_ofs()
+        if not ofs:
+            raise HTTPException(status_code=404, detail="Aucun ordre de fabrication trouvé")
+
+        return ofs
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur interne : {str(e)}")

@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Any, List, Optional
 
+
 class WriteData(BaseModel):
     node_name: str
     value: Any
