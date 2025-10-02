@@ -156,7 +156,7 @@ async def get_role(
             raise HTTPException(status_code=500, detail="Échec de la reconnexion à la base de données")
 
     # Récupère le rôle (int)
-    role = bdd.get_role_by_tag(session, tag_request.tag_rfid)
+    role = bdd.get_role_by_tag(session, tag_request.badgeID)
 
     if not opcua.is_connected:
         connected = await opcua.connect()
@@ -169,7 +169,7 @@ async def get_role(
 
 
     # Retour JSON à la webvisu
-    return {"tag_rfid": tag_request.tag_rfid, "role": role, "opcua_written": success}
+    return {"badgeID": tag_request.badgeID, "role": role, "opcua_written": success}
 
 
 

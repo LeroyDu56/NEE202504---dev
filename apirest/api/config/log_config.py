@@ -8,10 +8,14 @@ import mysql.connector
 # Handler custom pour MySQL
 # ==========================
 class MySQLHandler(logging.Handler):
-    def __init__(self, host, user, password, database, table="logs"):
+    def __init__(self, host, user, password, database, port=3306, table="logs"):
         super().__init__()
         self.conn = mysql.connector.connect(
-            host=host, user=user, password=password, database=database
+            host=host,
+            user=user,
+            password=password,
+            database=database,
+            port=port          # <-- ajout du port ici
         )
         self.cursor = self.conn.cursor()
         self.cursor.execute(f"""

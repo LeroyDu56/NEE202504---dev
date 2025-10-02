@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  fastapi:
+    build: ./apirest/api
+    container_name: fastapi_app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+    restart: always
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_DATABASE=mydb
+      - MYSQL_USER=admin
+      - MYSQL_PASSWORD=admin
+
+  mysql:
+    image: mysql:8
+    container_name: mysql_db
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=mydb
+      - MYSQL_USER=admin
+      - MYSQL_PASSWORD=admin
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "mysql"]
+      interval: 5s
+      retries: 10
+      timeout: 5s
+
+  adminer:
+    image: adminer
+    container_name: adminer_ui
+    depends_on:
+      - mysql
+    ports:
+      - "8080:8080"
+
+  vueapp:
+    build: ./webvisu
+    ports:
+      - "8081:80"
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+    name: apirest_mysql-data

@@ -21,3 +21,14 @@ class WriteRequest(BaseModel):
     node_id: str
     value: Optional[str] = None
     variant_type: Optional[str] = None
+
+
+class OF(BaseModel):
+    name: str
+    product_id: List  # [id, nom produit]
+    product_qty: int
+    qty_produced: int
+    state: str
+    date_planned_start: Optional[str]
+    date_planned_finished: Optional[str]
+    bom_ref: Optional[str] 
