@@ -38,7 +38,7 @@
         <thead>
           <tr>
             <th>Sélection</th>
-            <th>Provenance</th>
+            <th>ID</th>
             <th>OF</th>
             <th>Références</th>
             <th>Code produit</th>
@@ -54,9 +54,9 @@
             :class="{ selected: selectedOF === of }"
           >
             <td>
-              <input type="radio" name="ofSelect" @change="selectOF(of)" />
+            <input type="radio" name="ofSelect" @change="selectOF(of)" />
             </td>
-            <td>{{ of.provenance }}</td>
+            <td>{{ of.id }}</td> <!-- ✅ ici on met l'id -->
             <td>{{ of.of }}</td>
             <td>{{ of.reference }}</td>
             <td>{{ of.codeProduit }}</td>
@@ -136,9 +136,8 @@ async function loadOFs() {
     alert("Impossible de récupérer les OFs.");
   }
 }
-// ✅ modèle pour un nouveau OF
+
 const newOF = ref<OF>({
-  provenance: "Opérateur",
   of: "",
   reference: "",
   codeProduit: "",
@@ -146,6 +145,7 @@ const newOF = ref<OF>({
   datePlanifiee: "",
   statut: "en_attente",
 });
+
 
 // ✅ Sélectionner un OF
 function selectOF(of: OF) {
@@ -189,10 +189,12 @@ async function saveNewOF() {
 
 // ✅ Supprimer un OF (uniquement si opérateur)
 async function handleDeleteSelectedOF(of: OF) {
-  if (!of || of.provenance !== "Opérateur") {
-    alert("Impossible de supprimer un OF importé depuis l'ERP.");
+  if (!of) {
+    alert("Aucun OF sélectionné.");
     return;
   }
+
+
   ofList.value = ofList.value.filter((item) => item !== of);
   if (selectedOF.value === of) selectedOF.value = null;
   alert("OF supprimé (local uniquement).");
@@ -206,10 +208,12 @@ async function handleLaunchOF() {
   }
   try {
     await launchOF({
+      id: selectedOF.value.id!,    // ✅ ajouter id
       of: selectedOF.value.of,
       codeProduit: selectedOF.value.codeProduit,
       quantite: selectedOF.value.quantite,
     });
+
     alert("OF lancé avec succès !");
   } catch (err) {
     console.error("Erreur lancement OF :", err);

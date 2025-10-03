@@ -12,11 +12,12 @@ const api = axios.create({
   },
 });
 
+
 //======================================================================================
 //----------------------------------- Demander OF ERP ----------------------------------
 //======================================================================================
 export async function getOFs(): Promise<any[]> {
-  const response: AxiosResponse<any[]> = await api.get("/api/erp/ofs"); // 🔥 route correcte
+  const response: AxiosResponse<any[]> = await api.get("/api/erp/ofs");
 
   return response.data.map((of: any) => {
     // Sépare la chaîne "25: Assemblage"
@@ -25,11 +26,10 @@ export async function getOFs(): Promise<any[]> {
       : ["N/A", "N/A"];
 
     return {
-      id: String(of.id),
-      provenance: "ERP",
-      of: of.name,
-      reference,
-      codeProduit,
+      id: String(of.id),             // ✅ ID réel de l'OF
+      of: of.name,                   // N° OF (ex: "WH/MO/00034")
+      reference,                     // ex: "Assemblage"
+      codeProduit,                   // ex: "25"
       quantite: of.product_qty,
       datePlanifiee: of.date_planned_start?.split("T")[0] ?? "",
       statut:
@@ -43,6 +43,7 @@ export async function getOFs(): Promise<any[]> {
     };
   });
 }
+
 
 //======================================================================================
 //----------------------------- Récupérer valeurs OPC-UA -------------------------------
@@ -120,13 +121,13 @@ export async function createOF(data: {
 //------------------------------------- Lancer un OF -----------------------------------
 //======================================================================================
 export async function launchOF(of: {
+  id: string;          // ✅ ajouter id
   of: string;
   codeProduit: string;
   quantite: number;
 }): Promise<any> {
-  // ✅ Extraire les 2 derniers chiffres du numéro d’OF (ex: "WH/MO/00034" → "34")
-  const numeroOFStr = of.of.slice(-2);
-  const numeroOF = parseInt(numeroOFStr, 10);
+  // ✅ Utiliser directement l'id comme NumeroOF
+  const numeroOF = parseInt(of.id, 10);
 
   // ✅ Convertir le code produit en entier
   const codeProduitNum = parseInt(of.codeProduit, 10);
@@ -137,19 +138,19 @@ export async function launchOF(of: {
       {
         node_name:
           "ns=4;s=|var|WAGO 750-8302 PFC300 2ETH RS.Application.OPCUA.Ilot_1.NumeroOF",
-        value: numeroOF, // ex: 34
+        value: numeroOF, // 🔥 envoie bien l'id ici
         variant_type: "UInt16",
       },
       {
         node_name:
           "ns=4;s=|var|WAGO 750-8302 PFC300 2ETH RS.Application.OPCUA.Ilot_1.RecetteOF",
-        value: codeProduitNum, // ex: 25
+        value: codeProduitNum,
         variant_type: "UInt16",
       },
       {
         node_name:
           "ns=4;s=|var|WAGO 750-8302 PFC300 2ETH RS.Application.OPCUA.Ilot_1.QuantiteOF",
-        value: Number(of.quantite), // ex: 1
+        value: Number(of.quantite),
         variant_type: "UInt16",
       },
     ],
@@ -157,7 +158,6 @@ export async function launchOF(of: {
 
   console.log("📤 Payload envoyé au backend :", payload);
 
-  // POST direct vers ton backend
   const response: AxiosResponse<any> = await api.post(
     "/api/opcua/write-of",
     payload
